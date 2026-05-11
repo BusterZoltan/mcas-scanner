@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>MCAS Food Scanner</title>
 <!-- ZXing barcode scanning library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.21.3/zxing.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
   :root {
     --bg: #f7f6f3;
@@ -293,11 +293,8 @@ async function startScanner() {
     btn.innerHTML = '<span>⏹</span> Stop scanning';
     scannerActive = true;
 
-    const hints = new Map();
-    // Prefer rear camera
-    const constraints = { video: { facingMode: { ideal: 'environment' } } };
-
-    codeReader = new ZXing.BrowserMultiFormatReader(hints);
+    const ZXingLib = window.ZXing || window['@zxing/library'];
+    codeReader = new ZXingLib.BrowserMultiFormatReader();
     const videoEl = document.getElementById('scanner-video');
 
     codeReader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, videoEl, (result, err) => {
