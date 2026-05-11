@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MCAS Food Scanner</title>
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --border: #e4e2dc;
+    --text: #1a1a18;
+    --muted: #6b6a65;
+    --hint: #9e9c96;
+    --safe-bg: #eaf3de;
+    --safe-text: #3b6d11;
+    --warn-bg: #faeeda;
+    --warn-text: #854f0b;
+    --danger-bg: #fcebeb;
+    --danger-text: #a32d2d;
+    --accent: #1a1a18;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18;
+      --surface: #242422;
+      --border: #333330;
+      --text: #f0ede6;
+      --muted: #9e9c96;
+      --hint: #6b6a65;
+      --safe-bg: #173404;
+      --safe-text: #c0dd97;
+      --warn-bg: #412402;
+      --warn-text: #fac775;
+      --danger-bg: #501313;
+      --danger-text: #f7c1c1;
+      --accent: #f0ede6;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  a { color: inherit; }
+
+  /* Layout */
+  .container { max-width: 680px; margin: 0 auto; padding: 0 16px 80px; }
+  header { padding: 28px 0 24px; border-bottom: 0.5px solid var(--border); margin-bottom: 24px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.3px; }
+  header p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* Tabs */
+  .tabs { display: flex; background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 20px; }
+  .tab { flex: 1; padding: 10px; font-size: 13px; font-weight: 500; background: none; border: none; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  .tab.active { background: var(--text); color: var(--bg); }
+
+  /* Search */
+  .search-row { display: flex; gap: 8px; margin-bottom: 20px; }
+  .search-row input { flex: 1; padding: 10px 14px; font-size: 14px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); outline: none; }
+  .search-row input:focus { border-color: var(--text); }
+  .search-row button { padding: 10px 18px; font-size: 14px; font-weight: 500; background: var(--text); color: var(--bg); border: none; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap; }
+  .search-row button:hover { opacity: 0.85; }
+  .search-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Result list */
+  .results { display: flex; flex-direction: column; gap: 8px; }
+  .result-item { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 14px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: border-color 0.15s; }
+  .result-item:hover { border-color: var(--muted); }
+  .result-icon { font-size: 20px; flex-shrink: 0; width: 24px; text-align: center; }
+  .result-info { flex: 1; min-width: 0; }
+  .result-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .result-brand { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .result-chevron { color: var(--hint); font-size: 16px; flex-shrink: 0; }
+
+  /* Detail view */
+  .detail { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .back-btn { background: none; border: none; cursor: pointer; color: var(--muted); font-size: 13px; margin-bottom: 16px; display: flex; align-items: center; gap: 4px; padding: 0; }
+  .back-btn:hover { color: var(--text); }
+  .detail-name { font-size: 18px; font-weight: 600; margin-bottom: 2px; }
+  .detail-brand { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+
+  .safety-banner { border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; font-size: 14px; font-weight: 500; }
+  .safety-banner .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .banner-safe { background: var(--safe-bg); color: var(--safe-text); }
+  .banner-warn { background: var(--warn-bg); color: var(--warn-text); }
+  .banner-danger { background: var(--danger-bg); color: var(--danger-text); }
+  .banner-unknown { background: var(--bg); color: var(--muted); border: 0.5px solid var(--border); }
+
+  .section-label { font-size: 11px; font-weight: 600; color: var(--hint); text-transform: uppercase; letter-spacing: 0.07em; margin: 16px 0 8px; }
+  .pill-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 0.5px solid var(--border); color: var(--muted); background: var(--bg); }
+  .pill.trigger { background: var(--danger-bg); color: var(--danger-text); border-color: transparent; font-weight: 500; }
+  .pill.opaque { background: var(--warn-bg); color: var(--warn-text); border-color: transparent; }
+  .pill.trigger::before { content: '⚠ '; font-size: 10px; }
+  .pill.opaque::before { content: '? '; font-size: 10px; }
+
+  /* Legend */
+  .legend { display: flex; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Trigger manager */
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .trigger-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
+  .trigger-row:last-of-type { border-bottom: none; }
+  .trigger-row-name { flex: 1; font-size: 13px; font-weight: 500; }
+  .cat-badge { font-size: 11px; color: var(--muted); background: var(--bg); padding: 2px 8px; border-radius: 999px; border: 0.5px solid var(--border); }
+  .sev-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+  .sev-high { background: var(--danger-bg); color: var(--danger-text); }
+  .sev-medium { background: var(--warn-bg); color: var(--warn-text); }
+  .sev-low { background: var(--safe-bg); color: var(--safe-text); }
+  .remove-btn { background: none; border: none; cursor: pointer; color: var(--hint); font-size: 18px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+  .remove-btn:hover { color: var(--danger-text); background: var(--danger-bg); }
+  .add-form { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; padding-top: 16px; border-top: 0.5px solid var(--border); }
+  .add-form input, .add-form select { padding: 8px 12px; font-size: 13px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); outline: none; }
+  .add-form input { flex: 1; min-width: 140px; }
+  .add-form input:focus, .add-form select:focus { border-color: var(--text); }
+  .add-form button { padding: 8px 16px; font-size: 13px; font-weight: 500; background: var(--text); color: var(--bg); border: none; border-radius: var(--radius-sm); cursor: pointer; }
+
+  /* Empty / loading states */
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty-icon { font-size: 36px; display: block; margin-bottom: 10px; }
+  .loading { text-align: center; padding: 32px 20px; color: var(--muted); font-size: 14px; }
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; margin-bottom: 10px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* No-ingredients note */
+  .no-data-note { font-size: 13px; color: var(--muted); background: var(--bg); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🛡 MCAS Food Scanner</h1>
+    <p>Search packaged foods and check ingredients against your personal trigger list</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-search-btn" onclick="switchTab('search')">Search foods</button>
+    <button class="tab" id="tab-triggers-btn" onclick="switchTab('triggers')">My trigger list</button>
+  </div>
+
+  <!-- SEARCH TAB -->
+  <div id="tab-search">
+    <div class="search-row">
+      <input type="text" id="search-input" placeholder="e.g. Greek yogurt, almond milk, Oreos..." />
+      <button id="search-btn" onclick="doSearch()">Search</button>
+    </div>
+    <div id="search-area">
+      <div class="empty">
+        <span class="empty-icon">🔍</span>
+        Search for a food to check its ingredients
+      </div>
+    </div>
+  </div>
+
+  <!-- TRIGGERS TAB -->
+  <div id="tab-triggers" style="display:none">
+    <div class="card">
+      <div class="section-label" style="margin-top:0">Your trigger list</div>
+      <div id="trigger-list"></div>
+      <div class="add-form">
+        <input type="text" id="new-name" placeholder="Ingredient name (e.g. carrageenan)" />
+        <select id="new-cat">
+          <option value="additive">Additive</option>
+          <option value="histamine">Histamine</option>
+          <option value="liberator">Liberator</option>
+          <option value="dye">Dye</option>
+          <option value="other">Other</option>
+        </select>
+        <select id="new-sev">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <button onclick="addTrigger()">+ Add</button>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--hint);margin-top:12px;text-align:center">Your trigger list is saved in your browser automatically.</p>
+  </div>
+</div>
+
+<script>
+// ─── Default MCAS trigger list ───────────────────────────────────────────────
+const DEFAULT_TRIGGERS = [
+  { name: 'carrageenan',            aliases: ['carrageenan', 'e407'],                                    cat: 'additive',  sev: 'high'   },
+  { name: 'annatto',                aliases: ['annatto', 'e160b', 'bixin', 'norbixin'],                  cat: 'dye',       sev: 'high'   },
+  { name: 'titanium dioxide',       aliases: ['titanium dioxide', 'e171'],                               cat: 'additive',  sev: 'high'   },
+  { name: 'sodium benzoate',        aliases: ['sodium benzoate', 'e211'],                                cat: 'additive',  sev: 'medium' },
+  { name: 'sodium nitrate/nitrite', aliases: ['sodium nitrate', 'sodium nitrite', 'e250', 'e251'],       cat: 'additive',  sev: 'medium' },
+  { name: 'carmine',                aliases: ['carmine', 'cochineal', 'e120', 'natural red 4'],          cat: 'dye',       sev: 'high'   },
+  { name: 'MSG',                    aliases: ['monosodium glutamate', 'msg', 'e621'],                    cat: 'additive',  sev: 'medium' },
+  { name: 'sulfites',               aliases: ['sulfite', 'sulphite', 'sulfur dioxide', 'e220', 'e221', 'e222', 'e223', 'e224'], cat: 'additive', sev: 'high' },
+  { name: 'high fructose corn syrup', aliases: ['high fructose corn syrup', 'hfcs'],                    cat: 'additive',  sev: 'medium' },
+  { name: 'artificial colors',      aliases: ['red 40', 'yellow 5', 'yellow 6', 'blue 1', 'blue 2', 'red 3', 'fd&c'], cat: 'dye', sev: 'medium' },
+];
+
+// Opaque ingredients that may hide triggers
+const OPAQUE = [
+  'natural flavor', 'natural flavors', 'artificial flavor', 'artificial flavors',
+  'spices', 'seasoning', 'seasonings', 'natural and artificial',
+  'vegetable broth', 'chicken broth', 'beef broth', 'bone broth',
+  'yeast extract', 'hydrolyzed', 'modified starch', 'modified food starch', 'extract'
+];
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let triggers = JSON.parse(localStorage.getItem('mcas_triggers') || 'null') || structuredClone(DEFAULT_TRIGGERS);
+let lastResults = [];
+let currentTab = 'search';
+
+function save() { localStorage.setItem('mcas_triggers', JSON.stringify(triggers)); }
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-search').style.display = tab === 'search' ? '' : 'none';
+  document.getElementById('tab-triggers').style.display = tab === 'triggers' ? '' : 'none';
+  document.getElementById('tab-search-btn').classList.toggle('active', tab === 'search');
+  document.getElementById('tab-triggers-btn').classList.toggle('active', tab === 'triggers');
+  if (tab === 'triggers') renderTriggers();
+}
+
+// ─── Trigger management ───────────────────────────────────────────────────────
+function renderTriggers() {
+  const el = document.getElementById('trigger-list');
+  if (!triggers.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px 0">No triggers yet. Add one below.</p>';
+    return;
+  }
+  el.innerHTML = triggers.map((t, i) => `
+    <div class="trigger-row">
+      <span class="trigger-row-name">${t.name}</span>
+      <span class="cat-badge">${t.cat}</span>
+      <span class="sev-badge sev-${t.sev}">${t.sev}</span>
+      <button class="remove-btn" onclick="removeTrigger(${i})" title="Remove">×</button>
+    </div>`).join('');
+}
+
+function addTrigger() {
+  const name = document.getElementById('new-name').value.trim().toLowerCase();
+  if (!name) return;
+  const cat = document.getElementById('new-cat').value;
+  const sev = document.getElementById('new-sev').value;
+  triggers.push({ name, aliases: [name], cat, sev });
+  save();
+  document.getElementById('new-name').value = '';
+  renderTriggers();
+}
+
+function removeTrigger(i) {
+  triggers.splice(i, 1);
+  save();
+  renderTriggers();
+}
+
+// ─── Ingredient checking ──────────────────────────────────────────────────────
+function checkIngredients(ingredientStr) {
+  if (!ingredientStr) return { found: [], opaque: [], score: 'unknown' };
+  const lower = ingredientStr.toLowerCase();
+  const found = [];
+  const opaqueFound = [];
+
+  triggers.forEach(t => {
+    if (t.aliases.some(a => lower.includes(a.toLowerCase())) && !found.find(f => f.name === t.name)) {
+      found.push(t);
+    }
+  });
+
+  OPAQUE.forEach(o => { if (lower.includes(o)) opaqueFound.push(o); });
+
+  const score = found.some(f => f.sev === 'high') ? 'danger'
+              : (found.length || opaqueFound.length) ? 'warn'
+              : 'safe';
+  return { found, opaque: opaqueFound, score };
+}
+
+function scoreEmoji(score) {
+  return score === 'danger' ? '🔴' : score === 'warn' ? '🟡' : score === 'safe' ? '🟢' : '⚪';
+}
+
+// ─── Search ───────────────────────────────────────────────────────────────────
+async function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+
+  const btn = document.getElementById('search-btn');
+  btn.disabled = true;
+  btn.textContent = 'Searching...';
+
+  document.getElementById('search-area').innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div><br>
+      Searching Open Food Facts...
+    </div>`;
+
+  try {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+
+    if (!data.products || !data.products.length) {
+      document.getElementById('search-area').innerHTML = `
+        <div class="empty">
+          <span class="empty-icon">😕</span>
+          No products found for "<strong>${q}</strong>". Try a different name.
+        </div>`;
+      return;
+    }
+
+    lastResults = data.products;
+    renderResults();
+  } catch (err) {
+    document.getElementById('search-area').innerHTML = `
+      <div class="empty">
+        <span class="empty-icon">⚠️</span>
+        Search failed. Make sure the app is deployed correctly and try again.
+        <br><small style="margin-top:8px;display:block;color:var(--hint)">${err.message}</small>
+      </div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Search';
+  }
+}
+
+function renderResults() {
+  const html = lastResults.map((p, i) => {
+    const check = checkIngredients(p.ingredients);
+    return `
+      <div class="result-item" onclick="showDetail(${i})">
+        <span class="result-icon">${scoreEmoji(check.score)}</span>
+        <div class="result-info">
+          <div class="result-name">${p.name}</div>
+          ${p.brand ? `<div class="result-brand">${p.brand}</div>` : ''}
+        </div>
+        <span class="result-chevron">›</span>
+      </div>`;
+  }).join('');
+
+  document.getElementById('search-area').innerHTML = `
+    <p style="font-size:12px;color:var(--hint);margin-bottom:10px">${lastResults.length} results — tap any item to see ingredients</p>
+    <div class="results">${html}</div>`;
+}
+
+function showDetail(i) {
+  const p = lastResults[i];
+  const check = checkIngredients(p.ingredients);
+
+  const bannerClass = check.score === 'danger' ? 'banner-danger'
+                    : check.score === 'warn' ? 'banner-warn'
+                    : check.score === 'safe' ? 'banner-safe'
+                    : 'banner-unknown';
+
+  const bannerText = check.score === 'danger'
+    ? `Contains ${check.found.filter(f => f.sev === 'high').length} high-severity trigger(s) — avoid`
+    : check.score === 'warn'
+    ? `Caution: medium-severity triggers or opaque ingredients found`
+    : check.score === 'safe'
+    ? `No known triggers detected in ingredient list`
+    : `No ingredient data available for this product`;
+
+  const bannerIcon = check.score === 'danger' ? '🔴' : check.score === 'warn' ? '🟡' : check.score === 'safe' ? '🟢' : '⚪';
+
+  let ingredientPills = '';
+  if (p.ingredients) {
+    ingredientPills = p.ingredients.split(/,|;/).map(s => s.trim()).filter(Boolean).map(part => {
+      const low = part.toLowerCase();
+      const isTrigger = triggers.some(t => t.aliases.some(a => low.includes(a.toLowerCase())));
+      const isOpaque = OPAQUE.some(o => low.includes(o));
+      return `<span class="pill ${isTrigger ? 'trigger' : isOpaque ? 'opaque' : ''}">${part}</span>`;
+    }).join('');
+  }
+
+  document.getElementById('search-area').innerHTML = `
+    <button class="back-btn" onclick="renderResults()">← Back to results</button>
+    <div class="detail">
+      <div class="detail-name">${p.name}</div>
+      ${p.brand ? `<div class="detail-brand">${p.brand}</div>` : ''}
+
+      <div class="safety-banner ${bannerClass}">
+        <span class="icon">${bannerIcon}</span>
+        <div>${bannerText}</div>
+      </div>
+
+      ${check.found.length ? `
+        <div class="section-label">Triggers found</div>
+        <div class="pill-grid">
+          ${check.found.map(f => `<span class="pill trigger">${f.name} (${f.sev})</span>`).join('')}
+        </div>` : ''}
+
+      ${check.opaque.length ? `
+        <div class="section-label">Opaque ingredients (contents unknown)</div>
+        <div class="pill-grid">
+          ${check.opaque.map(o => `<span class="pill opaque">${o}</span>`).join('')}
+        </div>` : ''}
+
+      ${p.ingredients ? `
+        <div class="section-label">All ingredients</div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-dot" style="background:var(--danger-bg);border:1px solid var(--danger-text)"></span> trigger</span>
+          <span class="legend-item"><span class="legend-dot" style="background:var(--warn-bg);border:1px solid var(--warn-text)"></span> opaque</span>
+        </div>
+        <div class="pill-grid">${ingredientPills}</div>`
+      : `<div class="no-data-note">⚠ No ingredient list available for this product in the Open Food Facts database. You can still look it up by barcode on <a href="https://world.openfoodfacts.org" target="_blank">openfoodfacts.org</a>.</div>`}
+    </div>`;
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+renderTriggers();
+</script>
+</body>
+</html>
