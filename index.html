@@ -294,16 +294,20 @@ async function startScanner() {
     scannerActive = true;
 
     const ZXingLib = window.ZXing || window['@zxing/library'];
-    codeReader = new ZXingLib.BrowserMultiFormatReader();
-
-    // Get list of cameras and prefer the rear-facing one
-    const devices = await ZXingLib.BrowserCodeReader.listVideoInputDevices();
-    const rearDevice = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
-    const deviceId = rearDevice ? rearDevice.deviceId : undefined;
+    // Pass hints to prefer rear camera
+    const hints = new Map();
+    codeReader = new ZXingLib.BrowserMultiFormatReader(hints);
 
     const videoEl = document.getElementById('scanner-video');
 
-    await codeReader.decodeFromVideoDevice(deviceId, videoEl, (result, err) => {
+    // null = let ZXing pick the camera; we request environment-facing via getUserMedia first
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } }
+    });
+    const deviceId = stream.getVideoTracks()[0].getSettings().deviceId;
+    stream.getTracks().forEach(t => t.stop()); // release before ZXing takes over
+
+    await codeReader.decodeFromVideoDevice(deviceId || null, videoEl, (result, err) => {
       if (result) {
         const code = result.getText();
         stopScanner();
