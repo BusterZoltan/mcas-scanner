@@ -337,7 +337,7 @@ async function lookupBarcode(code) {
   try {
     const res = await fetch(`/api/barcode?code=${encodeURIComponent(code)}`);
     if (res.status === 404) {
-      showEmpty(`No product found for barcode <strong>${code}</strong>.<br><small style="color:var(--hint)">This product isn't in Open Food Facts yet. You can add it at <a href="https://world.openfoodfacts.org" target="_blank">openfoodfacts.org</a>.</small>`);
+      showEmpty(`No product found for barcode <strong>${code}</strong>.<br><small style="color:var(--hint)">This product may not be in Open Food Facts yet. Try searching by name instead, or add it at <a href="https://world.openfoodfacts.org" target="_blank">openfoodfacts.org</a>.</small><br><br><button onclick="startScanner()" style="margin-top:8px;padding:10px 18px;font-size:14px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius-sm);cursor:pointer">📷 Scan another</button>`);
       return;
     }
     const data = await res.json();
@@ -345,7 +345,7 @@ async function lookupBarcode(code) {
     lastResults = [data.product];
     showDetail(0, true);
   } catch (err) {
-    showEmpty(`Lookup failed. Check your connection and try again.<br><small style="color:var(--hint)">${err.message}</small>`);
+    showEmpty(`Lookup failed. Check your connection and try again.<br><small style="color:var(--hint)">${err.message}</small><br><br><button onclick="startScanner()" style="margin-top:8px;padding:10px 18px;font-size:14px;font-weight:500;background:var(--text);color:var(--bg);border:none;border-radius:var(--radius-sm);cursor:pointer">📷 Scan again</button>`);
   }
 }
 
@@ -391,9 +391,7 @@ function showDetail(i, fromScan) {
       }).join('')
     : '';
 
-  const backFn = fromScan
-    ? `document.getElementById('search-area').innerHTML='<div class=\\"empty\\"><span class=\\"empty-icon\\">🔍</span>Search by name above, or tap \\"Scan barcode\\" to use your camera</div>'`
-    : `renderResults()`;
+  const backFn = fromScan ? `startScanner()` : `renderResults()`;
 
   document.getElementById('search-area').innerHTML = `
     <button class="back-btn" onclick="${backFn}">← Back</button>
