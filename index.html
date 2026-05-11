@@ -295,14 +295,21 @@ async function startScanner() {
 
     const ZXingLib = window.ZXing || window['@zxing/library'];
     codeReader = new ZXingLib.BrowserMultiFormatReader();
+
+    // Get list of cameras and prefer the rear-facing one
+    const devices = await ZXingLib.BrowserCodeReader.listVideoInputDevices();
+    const rearDevice = devices.find(d => /back|rear|environment/i.test(d.label)) || devices[devices.length - 1];
+    const deviceId = rearDevice ? rearDevice.deviceId : undefined;
+
     const videoEl = document.getElementById('scanner-video');
 
-    codeReader.decodeFromConstraints({ video: { facingMode: { ideal: 'environment' } } }, videoEl, (result, err) => {
+    await codeReader.decodeFromVideoDevice(deviceId, videoEl, (result, err) => {
       if (result) {
         const code = result.getText();
         stopScanner();
         lookupBarcode(code);
       }
+      // Silently ignore NotFoundException - fires constantly while no barcode is in view
     });
   } catch (err) {
     stopScanner();
